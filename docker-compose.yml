@@ -1,0 +1,37 @@
+services:
+  pihole:
+    image: pihole/pihole:latest
+    container_name: pihole
+    hostname: ${HOSTNAME:-pihole}
+    restart: unless-stopped
+    secrets:
+      - webpassword
+    environment:
+      TZ: ${TZ:-Etc/UTC}
+      WEBPASSWORD_FILE: /run/secrets/webpassword
+      DNSMASQ_LISTENING: all
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.pihole.entrypoints=https
+      - traefik.http.routers.pihole.rule=Host(`pihole.${TRAEFIK_DOMAIN:?}`)
+      - traefik.http.routers.pihole.tls=true
+      - traefik.http.routers.pihole.tls.certresolver=cloudflare
+      - traefik.http.services.pihole.loadbalancer.server.port=80
+      - traefik.http.routers.pihole.middlewares=authentik@file
+    networks:
+      - traefik
+    ports:
+      - 53:53/tcp
+      - 53:53/udp
+      - 8080:80
+    volumes:
+      - ./data/dnsmasq:/etc/dnsmasq.d
+      - ./data/pihole:/etc/pihole
+
+networks:
+  traefik:
+    external: true
+
+secrets:
+  webpassword:
+    file: ./secrets/WEBPASSWORD.secrets
